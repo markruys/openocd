@@ -449,7 +449,19 @@ static int stm32lx_write_half_pages(struct flash_bank *bank, const uint8_t *buff
 	int retval = ERROR_OK;
 
 	static const uint8_t stm32lx_flash_write_code[] = {
-#include "../../../contrib/loaders/flash/stm32/stm32lx.inc"
+		/* write_word: */
+		0x00, 0x23,             /* movs r3, #0 */
+		0x04, 0xe0,             /* b test_done */
+
+		/* write_word: */
+		0x51, 0xf8, 0x04, 0xcb, /* ldr ip, [r1], #4 */
+		0x40, 0xf8, 0x04, 0xcb, /* str ip, [r0], #4 */
+		0x01, 0x33,             /* adds r3, #1 */
+
+		/* test_done: */
+		0x93, 0x42,             /* cmp r3, r2 */
+		0xf8, 0xd3,             /* bcc write_word */
+		0x00, 0xbe,             /* bkpt 0 */
 	};
 
 	/* Make sure we're performing a half-page aligned write. */
@@ -575,7 +587,7 @@ static int stm32lx_write_half_pages(struct flash_bank *bank, const uint8_t *buff
 		 * is reduced by 50% using this slower method.
 		 */
 
-		LOG_WARNING("Couldn't use loader, falling back to page memory writes");
+		LOG_WARNING("couldn't use loader, falling back to page memory writes");
 
 		while (count > 0) {
 			uint32_t this_count;
